@@ -11,25 +11,25 @@ type test_server struct {
 func TestContainer_Register(t *testing.T) {
 	con := new(Container)
 	con.Register(test_server{})
-	if con.GetType("summer.test_server") == nil{
-		t.Failed()
+	if con.GetType("summer.test_server") == nil {
+		t.Fail()
 	}
 }
 
 func TestContainer_Empty(t *testing.T) {
 	con := new(Container)
-	if con.GetType("summer.test_server") != nil{
-		t.Failed()
+	if con.GetType("summer.test_server") != nil {
+		t.Fail()
 	}
-	if con.Get("summer.test_server") != nil{
-		t.Failed()
+	if con.Get("summer.test_server") != nil {
+		t.Fail()
 	}
 }
 
 func TestContainer_Get(t *testing.T) {
 	con := new(Container)
 	con.Register(test_server{})
-	if con.Get("summer.test_server") == nil{
-		t.Failed()
+	if con.Get("summer.test_server") == nil {
+		t.Fail()
 	}
 }

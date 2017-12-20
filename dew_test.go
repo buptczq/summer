@@ -179,7 +179,7 @@ func TestPrivate(t *testing.T) {
 func TestProvideWithFields(t *testing.T) {
 	var g Graph
 	a := &TypeAnswerStruct{}
-	err := g.Provide(&Dew{Value: &a, Fields: map[string]*Dew{}})
+	err := g.Provide(&Dew{Value: &a, Dependencies: []*Dependence{}})
 	if err == nil {
 		t.Fatal("err is nil")
 	}

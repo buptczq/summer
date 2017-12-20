@@ -22,13 +22,19 @@ type Option struct {
 	Private bool
 }
 
+// Dependence type
+type Dependence struct {
+	Field  string
+	Object *Dew
+}
+
 // An Dew in the Graph.
 type Dew struct {
 	Value        interface{}
 	Name         string            // Optional
 	Complete     bool              // If true, the Value will be considered complete
 	Options      map[string]Option // The field names that named dependency were injected into
-	Fields       map[string]*Dew   // Populated with the field names that were injected and their corresponding *Dew.
+	Dependencies []*Dependence     // Dew's Dependencies
 	reflectType  reflect.Type
 	reflectValue reflect.Value
 	private      bool // If true, the Value will not be used and will only be populated
@@ -46,10 +52,10 @@ func (o *Dew) String() string {
 }
 
 func (o *Dew) addDep(field string, dep *Dew) {
-	if o.Fields == nil {
-		o.Fields = make(map[string]*Dew)
+	if o.Dependencies == nil {
+		o.Dependencies = make([]*Dependence, 0)
 	}
-	o.Fields[field] = dep
+	o.Dependencies = append(o.Dependencies, &Dependence{field, dep})
 }
 
 // The Graph of Objects.
@@ -68,7 +74,7 @@ func (g *Graph) Provide(objects ...*Dew) error {
 		o.reflectType = reflect.TypeOf(o.Value)
 		o.reflectValue = reflect.ValueOf(o.Value)
 
-		if o.Fields != nil {
+		if o.Dependencies != nil {
 			return fmt.Errorf(
 				"fields were specified on object %s when it was provided",
 				o,
@@ -432,6 +438,13 @@ func (g *Graph) Objects() []*Dew {
 		objects[i], objects[j] = objects[j], objects[i]
 	}
 	return objects
+}
+
+func (g *Graph) GetDewByName(name string) *Dew {
+	if g.named == nil {
+		return nil
+	}
+	return g.named[name]
 }
 
 func isStructPtr(t reflect.Type) bool {

@@ -36,7 +36,7 @@ type Stopper interface {
 // Start or Open. It returns the list of objects that have been
 // successfully started. This can be used to stop only the
 // dependencies that have been correctly started.
-func (g *Graph)tryStart() ([]*Dew, error) {
+func (g *Graph) tryStart() ([]*Dew, error) {
 	levels, err := levels(g.Objects())
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (g *Graph)tryStart() ([]*Dew, error) {
 
 // Start the graph, in the right order. Start will call Start or Open if an
 // object satisfies the associated interface.
-func (g *Graph)Start() error {
+func (g *Graph) Start() error {
 	started, err := g.tryStart()
 	g.started = started
 	return err
@@ -78,7 +78,7 @@ func (g *Graph)Start() error {
 
 // Stop the graph, in the right order. Stop will call Stop or Close if an
 // object satisfies the associated interface.
-func (g *Graph)Stop() error {
+func (g *Graph) Stop() error {
 	levels, err := levels(g.started)
 	if err != nil {
 		return err
@@ -170,10 +170,7 @@ func levels(objects []*Dew) ([][]*Dew, error) {
 	return levels, nil
 }
 
-type path []struct {
-	Field  string
-	Object *Dew
-}
+type path []*Dependence
 
 type cycleError path
 
@@ -206,12 +203,12 @@ func allPaths(from, to *Dew, seen map[*Dew]bool) []path {
 	}
 
 	var paths []path
-	for field, value := range from.Fields {
-		immediate := path{{Field: field, Object: from}}
-		if value == to {
+	for _, value := range from.Dependencies {
+		immediate := path{value}
+		if value.Object == to {
 			paths = append(paths, immediate)
 		} else {
-			for _, p := range allPaths(value, to, seen) {
+			for _, p := range allPaths(value.Object, to, seen) {
 				paths = append(paths, append(immediate, p...))
 			}
 		}

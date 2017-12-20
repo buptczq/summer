@@ -1,18 +1,18 @@
 package summer
 
 import (
+	"fmt"
 	"testing"
 )
-
-var test_answer int
 
 type AnswerSpeaker struct {
 	Answer Answerable
 }
 
 type StructAnswer struct {
-	Ans  int
-	List []string
+	Ans   int
+	List  []string
+	Array [5]string
 }
 
 func (s *StructAnswer) Answer() int {
@@ -20,7 +20,9 @@ func (s *StructAnswer) Answer() int {
 }
 
 func (s *AnswerSpeaker) Start() error {
-	test_answer = s.Answer.Answer()
+	if s.Answer.Answer() != 666 {
+		return fmt.Errorf("bad answer")
+	}
 	return nil
 }
 
@@ -39,10 +41,8 @@ func TestContainer_XMLConfigurationContainer(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	test_answer = 0
-	app.Start()
-	if test_answer != 666 {
-		t.Failed()
+	if app.Start() != nil {
+		t.Fail()
 	}
 	app.Stop()
 }
@@ -56,7 +56,7 @@ func TestContainer_XMLConfigurationContainer_BadXML(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -69,7 +69,7 @@ func TestContainer_XMLConfigurationContainer_BadClass(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -86,7 +86,7 @@ func TestContainer_XMLConfigurationContainer_UnnamedVapor(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -107,7 +107,7 @@ func TestContainer_BadStructFieldType(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -130,7 +130,7 @@ func TestContainer_DupName(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -147,7 +147,7 @@ func TestContainer_UnknownId(t *testing.T) {
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
-		t.Failed()
+		t.Fail()
 	}
 }
 
@@ -166,27 +166,30 @@ func TestContainer_SetField(t *testing.T) {
 	setStructField(&s, "Uint", "324324234")
 	setStructField(&s, "Bool", "true")
 	if s.Int != -213 || s.Str != "fdsaf" || s.Uint != 324324234 || s.Bool != true {
-		t.Failed()
+		t.Fail()
 	}
 }
 
 func TestContainer_SetField_Bad(t *testing.T) {
 	var s test_struct
 	str := "123"
-	if setStructField(&str, "Int", "-213") != nil {
-		t.Failed()
+	if setStructField(&s, "Fake", "-213") == nil {
+		t.Fail()
+	}
+	if setStructField(&str, "Int", "-213") == nil {
+		t.Fail()
 	}
 	if str != "123" {
-		t.Failed()
+		t.Fail()
 	}
-	if setStructField(&s, "Int", "abc") != nil {
-		t.Failed()
+	if setStructField(&s, "Int", "abc") == nil {
+		t.Fail()
 	}
-	if setStructField(&s, "Uint", "-66") != nil {
-		t.Failed()
+	if setStructField(&s, "Uint", "-66") == nil {
+		t.Fail()
 	}
-	if setStructField(&s, "Bool", "abc") != nil {
-		t.Failed()
+	if setStructField(&s, "Bool", "abc") == nil {
+		t.Fail()
 	}
 }
 
@@ -205,10 +208,66 @@ func TestContainer_AutoInject(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	test_answer = 0
-	app.Start()
-	if test_answer != 666 {
-		t.Failed()
+	if app.Start() != nil {
+		t.Fail()
+	}
+	app.Stop()
+}
+
+type StructInlineTest struct {
+	List  []string
+	Array [5]int
+	Map   map[string]string
+}
+
+func TestContainer_XMLInjectList(t *testing.T) {
+	con := new(Container)
+	con.Register(StructInlineTest{})
+	config := []byte(`
+<rain>
+<dew id="test" class="summer.StructInlineTest">
+<vapor name="List">
+	<vapor value="test1" />
+	<vapor value="test2" />
+	<vapor value="test3" />
+</vapor>
+<vapor name="Array">
+	<vapor value="1" />
+	<vapor value="2" />
+	<vapor value="3" />
+	<vapor value="4" />
+	<vapor value="5" />
+</vapor>
+<vapor name="Map">
+	<vapor name="key1" value="test1" />
+	<vapor name="key2" value="test2" />
+</vapor>
+</dew>
+</rain>
+`)
+	con.XMLConfigurationContainer(config, nil)
+	app, err := con.XMLConfigurationContainer(config, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Start() != nil {
+		t.Fail()
+	}
+	test := app.GetDewByName("test").Value.(*StructInlineTest)
+	result1 := []string{"test1", "test2", "test3"}
+	result2 := []int{1, 2, 3, 4, 5}
+	if test.Map["key1"] != "test1" || test.Map["key2"] != "test2" {
+		t.Fail()
+	}
+	for i := range result1 {
+		if test.List[i] != result1[i] {
+			t.Fail()
+		}
+	}
+	for i := range result2 {
+		if test.Array[i] != result2[i] {
+			t.Fail()
+		}
 	}
 	app.Stop()
 }

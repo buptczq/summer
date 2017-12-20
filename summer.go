@@ -3,17 +3,24 @@ package summer
 import (
 	"encoding/xml"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"strconv"
-	"io/ioutil"
 )
 
+type xmlSubVapor struct {
+	Name  string `xml:"name,attr"`
+	Dew   string `xml:"dew,attr"`
+	Value string `xml:"value,attr"`
+}
+
 type xmlVapor struct {
-	Name    string `xml:"name,attr"`
-	Dew     string `xml:"dew,attr"`
-	Value   string `xml:"value,attr"`
-	Private bool   `xml:"private,attr"`
-	Auto    bool   `xml:"auto,attr"`
+	Name    string        `xml:"name,attr"`
+	Dew     string        `xml:"dew,attr"`
+	Value   string        `xml:"value,attr"`
+	Private bool          `xml:"private,attr"`
+	Auto    bool          `xml:"auto,attr"`
+	List    []xmlSubVapor `xml:"vapor"`
 }
 
 type xmlDew struct {
@@ -27,14 +34,13 @@ type xmlRain struct {
 	Dew     []xmlDew `xml:"dew"`
 }
 
-func setStructField(s interface{}, fieldName string, value string) error {
-	if !isStructPtr(reflect.TypeOf(s)) {
-		return fmt.Errorf("need a struct")
+func setFieldWithString(v reflect.Value, value string) error {
+	if !v.IsValid() {
+		return fmt.Errorf("invalid field with value %s", value)
 	}
-	v := reflect.ValueOf(s).Elem().FieldByName(fieldName)
 	kt := v.Type()
 	if !v.CanSet() {
-		return fmt.Errorf("field %s can't set", fieldName)
+		return fmt.Errorf("field of type %s can't set", kt.String())
 	}
 	switch v.Kind() {
 	case reflect.String:
@@ -58,7 +64,66 @@ func setStructField(s interface{}, fieldName string, value string) error {
 		}
 		v.SetBool(n)
 	default:
+		return fmt.Errorf("unsupport inject %s into type %s", value, kt.String())
+	}
+	return nil
+}
+
+func setStructField(s interface{}, fieldName string, value string) error {
+	if !isStructPtr(reflect.TypeOf(s)) {
+		return fmt.Errorf("need a struct")
+	}
+	v := reflect.ValueOf(s).Elem().FieldByName(fieldName)
+	return setFieldWithString(v, value)
+}
+
+func setStructInlineField(s interface{}, fieldName string, list []xmlSubVapor) error {
+	if !isStructPtr(reflect.TypeOf(s)) {
+		return fmt.Errorf("need a struct")
+	}
+	v := reflect.ValueOf(s).Elem().FieldByName(fieldName)
+	kt := v.Type()
+	if !v.IsValid() {
+		return fmt.Errorf("invalid field %s", fieldName)
+	}
+	if !v.CanSet() {
+		return fmt.Errorf("field %s can't set", fieldName)
+	}
+	switch v.Kind() {
+	case reflect.Slice:
+		l := reflect.MakeSlice(kt, len(list), len(list))
+		for i := range list {
+			if err := setFieldWithString(l.Index(i), list[i].Value); err != nil {
+				return err
+			}
+		}
+		v.Set(l)
+	case reflect.Array:
+		if v.Len() != len(list) {
+			return fmt.Errorf("length of %s doesn't match array %s", fieldName, kt.String())
+		}
+		for i := range list {
+			if err := setFieldWithString(v.Index(i), list[i].Value); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		l := reflect.MakeMap(kt)
+		for i := range list {
+			valueKey := reflect.New(kt.Key()).Elem()
+			valueVal := reflect.New(kt.Elem()).Elem()
+			if err := setFieldWithString(valueKey, list[i].Name); err != nil {
+				return err
+			}
+			if err := setFieldWithString(valueVal, list[i].Value); err != nil {
+				return err
+			}
+			l.SetMapIndex(valueKey, valueVal)
+		}
+		v.Set(l)
+	default:
 		return fmt.Errorf("unsupport type %s", kt.String())
+
 	}
 	return nil
 }
@@ -77,16 +142,28 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 		options := make(map[string]Option)
 		for _, v := range d.Vapor {
 			if v.Name == "" {
-				return nil, fmt.Errorf("expected a vapor name at Dew %s#%s", d.Class, d.Id)
+				return nil, fmt.Errorf("expected a vapor name at dew %s#%s", d.Class, d.Id)
 			}
 			if v.Dew != "" {
+				if len(v.List) != 0 {
+					return nil, fmt.Errorf("dew %s#%s shouldn't be a list", d.Class, d.Id)
+				}
 				options[v.Name] = Option{v.Dew, v.Private}
 			} else {
 				if v.Auto {
+					if len(v.List) != 0 {
+						return nil, fmt.Errorf("auto vapor at dew %s#%s shouldn't be a list", d.Class, d.Id)
+					}
 					options[v.Name] = Option{"", v.Private}
 				} else {
-					if err := setStructField(object, v.Name, v.Value); err != nil {
-						return nil, err
+					if len(v.List) == 0 {
+						if err := setStructField(object, v.Name, v.Value); err != nil {
+							return nil, err
+						}
+					} else {
+						if err := setStructInlineField(object, v.Name, v.List); err != nil {
+							return nil, err
+						}
 					}
 				}
 			}
