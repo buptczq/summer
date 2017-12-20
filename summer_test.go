@@ -38,7 +38,7 @@ func TestContainer_XMLConfigurationContainer(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	test_answer = 0
 	app.Start()
 	if test_answer != 666 {
@@ -54,7 +54,7 @@ func TestContainer_XMLConfigurationContainer_BadXML(t *testing.T) {
 <dew id="test" class="summer.StructAnswer">
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -67,7 +67,7 @@ func TestContainer_XMLConfigurationContainer_BadClass(t *testing.T) {
 <dew id="test" class="summer.StructAnswer" />
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -84,7 +84,7 @@ func TestContainer_XMLConfigurationContainer_UnnamedVapor(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -105,7 +105,7 @@ func TestContainer_BadStructFieldType(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -128,7 +128,7 @@ func TestContainer_DupName(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -145,7 +145,7 @@ func TestContainer_UnknownId(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	if app != nil {
 		t.Failed()
 	}
@@ -204,7 +204,7 @@ func TestContainer_AutoInject(t *testing.T) {
 </dew>
 </rain>
 `)
-	app, _ := con.XMLConfigurationContainer(config)
+	app, _ := con.XMLConfigurationContainer(config, nil)
 	test_answer = 0
 	app.Start()
 	if test_answer != 666 {

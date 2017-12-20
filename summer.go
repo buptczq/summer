@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"io/ioutil"
 )
 
 type xmlVapor struct {
@@ -62,9 +63,9 @@ func setStructField(s interface{}, fieldName string, value string) error {
 	return nil
 }
 
-func (c *Container) XMLConfigurationContainer(data []byte) (*Graph, error) {
+func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Graph, error) {
 	var r xmlRain
-	var app Graph
+	app := &Graph{Logger: logger}
 	if err := xml.Unmarshal(data, &r); err != nil {
 		return nil, err
 	}
@@ -102,5 +103,13 @@ func (c *Container) XMLConfigurationContainer(data []byte) (*Graph, error) {
 	if err := app.Populate(); err != nil {
 		return nil, err
 	}
-	return &app, nil
+	return app, nil
+}
+
+func (c *Container) XMLFileConfigurationContainer(filename string, logger Logger) (*Graph, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return c.XMLConfigurationContainer(data, logger)
 }
