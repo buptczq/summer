@@ -11,7 +11,6 @@ func (c *Container)Register(proto interface{})  {
 		c.rain = make(map[string]reflect.Type)
 	}
 	reflectType := reflect.TypeOf(proto)
-	println()
 	c.rain[reflectType.String()] = reflectType
 }
 
