@@ -100,7 +100,7 @@ func setStructInlineField(s interface{}, fieldName string, list []xmlSubVapor) e
 		v.Set(l)
 	case reflect.Array:
 		if v.Len() != len(list) {
-			return fmt.Errorf("length of %s doesn't match array %s", fieldName, kt.String())
+			return fmt.Errorf("the length of %s doesn't match array %s", fieldName, kt.String())
 		}
 		for i := range list {
 			if err := setFieldWithString(v.Index(i), list[i].Value); err != nil {
@@ -146,13 +146,13 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 			}
 			if v.Dew != "" {
 				if len(v.List) != 0 {
-					return nil, fmt.Errorf("dew %s#%s shouldn't be a list", d.Class, d.Id)
+					return nil, fmt.Errorf("dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 				}
 				options[v.Name] = Option{v.Dew, v.Private}
 			} else {
 				if v.Auto {
 					if len(v.List) != 0 {
-						return nil, fmt.Errorf("auto vapor at dew %s#%s shouldn't be a list", d.Class, d.Id)
+						return nil, fmt.Errorf("auto vapor at dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 					}
 					options[v.Name] = Option{"", v.Private}
 				} else {
