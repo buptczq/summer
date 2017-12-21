@@ -1,12 +1,15 @@
 package summer
 
 import (
+	"encoding"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strconv"
 )
+
+var UMARSHALTEXT_TYPE = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 type xmlSubVapor struct {
 	Name  string `xml:"name,attr"`
@@ -63,6 +66,18 @@ func setFieldWithString(v reflect.Value, value string) error {
 			return err
 		}
 		v.SetBool(n)
+	case reflect.Struct:
+		if reflect.PtrTo(kt).Implements(UMARSHALTEXT_TYPE) {
+			fv := reflect.New(kt)
+			if itm, ok := fv.Interface().(encoding.TextUnmarshaler); ok {
+				if err := itm.UnmarshalText([]byte(value)); err != nil {
+					return err
+				}
+				v.Set(fv.Elem())
+				return nil
+			}
+		}
+		return fmt.Errorf("unsupport inject %s into type %s", value, kt.String())
 	default:
 		return fmt.Errorf("unsupport inject %s into type %s", value, kt.String())
 	}

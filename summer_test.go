@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-type AnswerSpeaker struct {
-	Answer Answerable
-}
-
 type StructAnswer struct {
 	Ans   int
 	List  []string
@@ -17,6 +13,10 @@ type StructAnswer struct {
 
 func (s *StructAnswer) Answer() int {
 	return s.Ans
+}
+
+type AnswerSpeaker struct {
+	Answer Answerable
 }
 
 func (s *AnswerSpeaker) Start() error {
@@ -268,6 +268,49 @@ func TestContainer_XMLInjectList(t *testing.T) {
 		if test.Array[i] != result2[i] {
 			t.Fail()
 		}
+	}
+	app.Stop()
+}
+
+type StructUmarshalTestAns struct {
+	A int
+}
+
+type StructUmarshalTest struct {
+	A StructUmarshalTestAns
+}
+
+func (s *StructUmarshalTestAns) UnmarshalText(text []byte) error {
+	if string(text) == "test" {
+		s.A = 666
+	}
+	return nil
+}
+
+func (s *StructUmarshalTest) Answer() int {
+	return s.A.A
+}
+
+func TestContainer_XMLUmarshalTest(t *testing.T) {
+	con := new(Container)
+	con.Register(AnswerSpeaker{})
+	con.Register(StructUmarshalTest{})
+	config := []byte(`
+<rain>
+<dew id="test" class="summer.StructUmarshalTest">
+<vapor name="A"  value="test" />
+</dew>
+<dew id="checker" class="summer.AnswerSpeaker">
+<vapor name="Answer"  dew="test" />
+</dew>
+</rain>
+`)
+	app, err := con.XMLConfigurationContainer(config, nil)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	if app.Start() != nil {
+		t.Fail()
 	}
 	app.Stop()
 }
