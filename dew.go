@@ -16,10 +16,16 @@ type Logger interface {
 	Errorf(f string, args ...interface{})
 }
 
+// Vapor option
+type VaporOption struct {
+	Name string
+	Dew  string
+}
+
 // Field option
 type Option struct {
-	Name    string
-	Private bool
+	Name  string
+	Vapor []VaporOption
 }
 
 // Dependence type
@@ -37,7 +43,6 @@ type Dew struct {
 	Dependencies []*Dependence     // Dew's Dependencies
 	reflectType  reflect.Type
 	reflectValue reflect.Value
-	private      bool // If true, the Value will not be used and will only be populated
 	created      bool // If true, the Dew was created by us
 }
 
@@ -91,19 +96,17 @@ func (g *Graph) Provide(objects ...*Dew) error {
 				)
 			}
 
-			if !o.private {
-				if g.unnamedType == nil {
-					g.unnamedType = make(map[reflect.Type]bool)
-				}
-
-				if g.unnamedType[o.reflectType] {
-					return fmt.Errorf(
-						"provided two unnamed instances of type *%s",
-						o.reflectType.Elem().String(),
-					)
-				}
-				g.unnamedType[o.reflectType] = true
+			if g.unnamedType == nil {
+				g.unnamedType = make(map[reflect.Type]bool)
 			}
+
+			if g.unnamedType[o.reflectType] {
+				return fmt.Errorf(
+					"provided two unnamed instances of type *%s",
+					o.reflectType.Elem().String(),
+				)
+			}
+			g.unnamedType[o.reflectType] = true
 			g.unnamed = append(g.unnamed, o)
 		} else {
 			if g.named == nil {
@@ -255,17 +258,96 @@ StructLoop:
 			continue
 		}
 
-		// Maps are created and required to be private.
-		if fieldType.Kind() == reflect.Map {
-			if !option.Private {
-				return fmt.Errorf(
-					"inject on map field %s in type %s must be named or private",
+		// Slice are created and required to be private.
+		if fieldType.Kind() == reflect.Slice {
+
+			newSlice := reflect.MakeSlice(fieldType, len(option.Vapor), len(option.Vapor))
+			for vi, vapor := range option.Vapor {
+				existing := g.named[vapor.Dew]
+				if existing == nil {
+					return fmt.Errorf(
+						"did not find object named %s required by field %s in type %s",
+						vapor.Dew,
+						o.reflectType.Elem().Field(i).Name,
+						o.reflectType,
+					)
+				}
+
+				if !existing.reflectType.AssignableTo(fieldType.Elem()) {
+					return fmt.Errorf(
+						"object named %s of type %s is not assignable to field %s (%s) in type %s",
+						vapor.Dew,
+						fieldType.Elem(),
+						o.reflectType.Elem().Field(i).Name,
+						existing.reflectType,
+						o.reflectType,
+					)
+				}
+
+				newSlice.Index(vi).Set(reflect.ValueOf(existing.Value))
+				if g.Logger != nil {
+					g.Logger.Debugf(
+						"assigned %s to field %s in %s",
+						existing,
+						o.reflectType.Elem().Field(i).Name,
+						o,
+					)
+				}
+				o.addDep(fieldName, existing)
+			}
+			field.Set(newSlice)
+			if g.Logger != nil {
+				g.Logger.Debugf(
+					"made slice for field %s in %s",
 					o.reflectType.Elem().Field(i).Name,
-					o.reflectType,
+					o,
 				)
 			}
+			continue StructLoop
+		}
 
-			field.Set(reflect.MakeMap(fieldType))
+		// Maps are created and required to be private.
+		if fieldType.Kind() == reflect.Map {
+
+			newMap := reflect.MakeMap(fieldType)
+			for _, vapor := range option.Vapor {
+				valueKey := reflect.New(fieldType.Key()).Elem()
+				if err := setFieldWithString(valueKey, vapor.Name); err != nil {
+					return err
+				}
+				existing := g.named[vapor.Dew]
+				if existing == nil {
+					return fmt.Errorf(
+						"did not find object named %s required by field %s in type %s",
+						vapor.Dew,
+						o.reflectType.Elem().Field(i).Name,
+						o.reflectType,
+					)
+				}
+
+				if !existing.reflectType.AssignableTo(fieldType.Elem()) {
+					return fmt.Errorf(
+						"object named %s of type %s is not assignable to field %s (%s) in type %s",
+						vapor.Dew,
+						fieldType.Elem(),
+						o.reflectType.Elem().Field(i).Name,
+						existing.reflectType,
+						o.reflectType,
+					)
+				}
+
+				newMap.SetMapIndex(valueKey, reflect.ValueOf(existing.Value))
+				if g.Logger != nil {
+					g.Logger.Debugf(
+						"assigned %s to field %s in %s",
+						existing,
+						o.reflectType.Elem().Field(i).Name,
+						o,
+					)
+				}
+				o.addDep(fieldName, existing)
+			}
+			field.Set(newMap)
 			if g.Logger != nil {
 				g.Logger.Debugf(
 					"made map for field %s in %s",
@@ -273,7 +355,7 @@ StructLoop:
 					o,
 				)
 			}
-			continue
+			continue StructLoop
 		}
 
 		// Can only inject Pointers from here on.
@@ -287,31 +369,25 @@ StructLoop:
 
 		// Unless it's a private inject, we'll look for an existing instance of the
 		// same type.
-		if !option.Private {
-			for _, existing := range g.unnamed {
-				if existing.private {
-					continue
+		for _, existing := range g.unnamed {
+			if existing.reflectType.AssignableTo(fieldType) {
+				field.Set(reflect.ValueOf(existing.Value))
+				if g.Logger != nil {
+					g.Logger.Debugf(
+						"assigned existing %s to field %s in %s",
+						existing,
+						o.reflectType.Elem().Field(i).Name,
+						o,
+					)
 				}
-				if existing.reflectType.AssignableTo(fieldType) {
-					field.Set(reflect.ValueOf(existing.Value))
-					if g.Logger != nil {
-						g.Logger.Debugf(
-							"assigned existing %s to field %s in %s",
-							existing,
-							o.reflectType.Elem().Field(i).Name,
-							o,
-						)
-					}
-					o.addDep(fieldName, existing)
-					continue StructLoop
-				}
+				o.addDep(fieldName, existing)
+				continue StructLoop
 			}
 		}
 
 		newValue := reflect.New(fieldType.Elem())
 		newObject := &Dew{
 			Value:   newValue.Interface(),
-			private: option.Private,
 			created: true,
 		}
 
@@ -357,16 +433,6 @@ func (g *Graph) populateUnnamedInterface(o *Dew) error {
 			continue
 		}
 
-		// Interface injection can't be private because we can't instantiate new
-		// instances of an interface.
-		if option.Private {
-			return fmt.Errorf(
-				"found private inject option on interface field %s in type %s",
-				o.reflectType.Elem().Field(i).Name,
-				o.reflectType,
-			)
-		}
-
 		// Don't overwrite existing values.
 		if !isNilOrZero(field, fieldType) {
 			continue
@@ -380,9 +446,6 @@ func (g *Graph) populateUnnamedInterface(o *Dew) error {
 		// Find one, and only one assignable value for the field.
 		var found *Dew
 		for _, existing := range g.unnamed {
-			if existing.private {
-				continue
-			}
 			if existing.reflectType.AssignableTo(fieldType) {
 				if found != nil {
 					return fmt.Errorf(

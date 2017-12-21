@@ -39,7 +39,7 @@ func TestRequireTag(t *testing.T) {
 		B *TypeNestedStruct
 	}
 	g := Graph{}
-	g.Provide(&Dew{Value: &v, Options: map[string]Option{"B": Option{"", false}}})
+	g.Provide(&Dew{Value: &v, Options: map[string]Option{"B": Option{Name: ""}}})
 	if err := g.Populate(); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ type TypeWithNonPointerInject struct {
 func TestErrorOnNonPointerInject(t *testing.T) {
 	var a TypeWithNonPointerInject
 	g := Graph{}
-	g.Provide(&Dew{Value: &a, Options: map[string]Option{"A": Option{"", false}}})
+	g.Provide(&Dew{Value: &a, Options: map[string]Option{"A": Option{Name: ""}}})
 	err := g.Populate()
 	if err == nil {
 		t.Fatalf("expected error for %+v", a)
@@ -76,7 +76,7 @@ type TypeWithNonPointerStructInject struct {
 func TestErrorOnNonPointerStructInject(t *testing.T) {
 	var a TypeWithNonPointerStructInject
 	g := Graph{}
-	g.Provide(&Dew{Value: &a, Options: map[string]Option{"A": Option{"", false}}})
+	g.Provide(&Dew{Value: &a, Options: map[string]Option{"A": Option{Name: ""}}})
 	err := g.Populate()
 	if err == nil {
 		t.Fatalf("expected error for %+v", a)
@@ -97,11 +97,11 @@ func TestInjectSimple(t *testing.T) {
 
 	g := Graph{}
 	g.Provide(&Dew{Value: &v, Options: map[string]Option{
-		"A": Option{"", false},
-		"B": Option{"", false},
+		"A": Option{Name: ""},
+		"B": Option{Name: ""},
 	}})
 	g.Provide(&Dew{Value: &b, Options: map[string]Option{
-		"A": Option{"", false},
+		"A": Option{Name: ""},
 	}})
 	if err := g.Populate(); err != nil {
 		t.Fatal(err)
@@ -129,8 +129,8 @@ func TestDoesNotOverwrite(t *testing.T) {
 	v.A = a
 	g := Graph{}
 	g.Provide(&Dew{Value: &v, Options: map[string]Option{
-		"A": Option{"", false},
-		"B": Option{"", false},
+		"A": Option{Name: ""},
+		"B": Option{Name: ""},
 	}})
 	if err := g.Populate(); err != nil {
 		t.Fatal(err)
@@ -140,39 +140,6 @@ func TestDoesNotOverwrite(t *testing.T) {
 	}
 	if v.B == nil {
 		t.Fatal("v.B is nil")
-	}
-}
-
-func TestPrivate(t *testing.T) {
-	var v struct {
-		A *TypeAnswerStruct
-		B *TypeNestedStruct
-	}
-
-	var b TypeNestedStruct
-
-	g := Graph{}
-	g.Provide(&Dew{Value: &v, Options: map[string]Option{
-		"A": Option{"", true},
-		"B": Option{"", false},
-	}})
-	g.Provide(&Dew{Value: &b, Options: map[string]Option{
-		"A": Option{"", false},
-	}})
-	if err := g.Populate(); err != nil {
-		t.Fatal(err)
-	}
-	if v.A == nil {
-		t.Fatal("v.A is nil")
-	}
-	if v.B == nil {
-		t.Fatal("v.B is nil")
-	}
-	if v.B.A == nil {
-		t.Fatal("v.B.A is nil")
-	}
-	if v.A == v.B.A {
-		t.Fatal("got the same A")
 	}
 }
 
@@ -261,7 +228,7 @@ func TestNamedInstanceWithDependencies(t *testing.T) {
 	a := &TypeNestedStruct{}
 	if err := g.Provide(&Dew{
 		Value: a,
-		Name:  "foo", Options: map[string]Option{"A": Option{"", false}},
+		Name:  "foo", Options: map[string]Option{"A": Option{Name: ""}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +238,7 @@ func TestNamedInstanceWithDependencies(t *testing.T) {
 	}
 	if err := g.Provide(&Dew{
 		Value:   &c,
-		Options: map[string]Option{"A": Option{"foo", false}},
+		Options: map[string]Option{"A": Option{Name: "foo"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +261,7 @@ func TestTagWithMissingNamed(t *testing.T) {
 	var a TypeWithMissingNamed
 	if err := g.Provide(&Dew{
 		Value:   &a,
-		Options: map[string]Option{"A": Option{"foo", false}},
+		Options: map[string]Option{"A": Option{Name: "foo"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +284,7 @@ func TestCompleteProvides(t *testing.T) {
 
 	if err := g.Provide(&Dew{
 		Value:    &v,
-		Options:  map[string]Option{"A": Option{"", false}},
+		Options:  map[string]Option{"A": Option{Name: ""}},
 		Complete: true,
 	}); err != nil {
 		t.Fatal(err)
@@ -339,7 +306,7 @@ func TestCompleteNamedProvides(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Name:     "foo",
 		Value:    &v,
-		Options:  map[string]Option{"A": Option{"", false}},
+		Options:  map[string]Option{"A": Option{Name: ""}},
 		Complete: true,
 	}); err != nil {
 		t.Fatal(err)
@@ -361,7 +328,7 @@ func TestInjectInterfaceMissing(t *testing.T) {
 	var g Graph
 	if err := g.Provide(&Dew{
 		Value:   &v,
-		Options: map[string]Option{"Answerable": Option{"", false}},
+		Options: map[string]Option{"Answerable": Option{Name: ""}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -387,8 +354,8 @@ func TestInjectInterface(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &v,
 		Options: map[string]Option{
-			"Answerable": Option{"", false},
-			"A":          Option{"", false},
+			"Answerable": Option{Name: ""},
+			"A":          Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -422,7 +389,7 @@ func TestInvalidNamedInstanceType(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &c,
 		Options: map[string]Option{
-			"A": Option{"foo", false},
+			"A": Option{Name: "foo"},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -448,7 +415,7 @@ func TestInjectOnPrivateField(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &a,
 		Options: map[string]Option{
-			"a": Option{"", false},
+			"a": Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -474,7 +441,7 @@ func TestInjectOnPrivateInterfaceField(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &a,
 		Options: map[string]Option{
-			"a": Option{"", false},
+			"a": Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -497,7 +464,7 @@ func TestInjectNamedOnPrivateInterfaceField(t *testing.T) {
 		Value: &a,
 		Name:  "foo",
 		Options: map[string]Option{
-			"a": Option{"", false},
+			"a": Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -508,34 +475,6 @@ func TestInjectNamedOnPrivateInterfaceField(t *testing.T) {
 		t.Fatal("did not find expected error")
 	}
 	const msg = "inject requested on unexported field a in type *summer.TypeWithInjectOnPrivateField"
-	if err.Error() != msg {
-		t.Fatalf("expected:\n%s\nactual:\n%s", msg, err.Error())
-	}
-}
-
-type TypeInjectPrivateInterface struct {
-	Answerable Answerable
-	B          *TypeNestedStruct
-}
-
-func TestInjectPrivateInterface(t *testing.T) {
-	var v TypeInjectPrivateInterface
-	var g Graph
-	if err := g.Provide(&Dew{
-		Value: &v,
-		Options: map[string]Option{
-			"Answerable": Option{"", true},
-			"B":          Option{"", true},
-		},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	err := g.Populate()
-	if err == nil {
-		t.Fatal("did not find expected error")
-	}
-
-	const msg = "found private inject option on interface field Answerable in type *summer.TypeInjectPrivateInterface"
 	if err.Error() != msg {
 		t.Fatalf("expected:\n%s\nactual:\n%s", msg, err.Error())
 	}
@@ -553,9 +492,9 @@ func TestInjectTwoSatisfyInterface(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &v,
 		Options: map[string]Option{
-			"Answerable": Option{"", false},
-			"A":          Option{"", false},
-			"B":          Option{"", false},
+			"Answerable": Option{Name: ""},
+			"A":          Option{Name: ""},
+			"B":          Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -581,9 +520,9 @@ func TestInjectNamedTwoSatisfyInterface(t *testing.T) {
 		Value: &v,
 		Name:  "foo",
 		Options: map[string]Option{
-			"Answerable": Option{"", false},
-			"A":          Option{"", false},
-			"B":          Option{"", false},
+			"Answerable": Option{Name: ""},
+			"A":          Option{Name: ""},
+			"B":          Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -614,7 +553,7 @@ func TestErrorOnNonPointerNamedInject(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &v,
 		Options: map[string]Option{
-			"A": Option{"foo", false},
+			"A": Option{Name: "foo"},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -637,7 +576,7 @@ func TestInjectMap(t *testing.T) {
 	if err := g.Provide(&Dew{
 		Value: &v,
 		Options: map[string]Option{
-			"A": Option{"", true},
+			"A": Option{Name: ""},
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -648,5 +587,63 @@ func TestInjectMap(t *testing.T) {
 	}
 	if v.A == nil {
 		t.Fatal("v.A is nil")
+	}
+}
+
+func TestInjectMapWithDew(t *testing.T) {
+	var g Graph
+	var v struct {
+		A map[string]Answerable
+	}
+	a := TypeAnswerStruct{}
+	if err := g.Provide(&Dew{
+		Value: &a,
+		Name:  "test",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.Provide(&Dew{
+		Value: &v,
+		Options: map[string]Option{
+			"A": Option{Name: "", Vapor: []VaporOption{VaporOption{"test", "test"}}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := g.Populate(); err != nil {
+		t.Fatal(err)
+	}
+	if v.A["test"] != &a {
+		t.Fail()
+	}
+}
+
+func TestInjectSliceWithDew(t *testing.T) {
+	var g Graph
+	var v struct {
+		A []Answerable
+	}
+	a := TypeAnswerStruct{}
+	if err := g.Provide(&Dew{
+		Value: &a,
+		Name:  "test",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.Provide(&Dew{
+		Value: &v,
+		Options: map[string]Option{
+			"A": Option{Name: "", Vapor: []VaporOption{VaporOption{Dew: "test"}}},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := g.Populate(); err != nil {
+		t.Fatal(err)
+	}
+	if v.A[0] != &a {
+		t.Fail()
 	}
 }

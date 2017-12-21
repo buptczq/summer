@@ -163,21 +163,32 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 				if len(v.List) != 0 {
 					return nil, fmt.Errorf("dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 				}
-				options[v.Name] = Option{v.Dew, v.Private}
+				options[v.Name] = Option{Name: v.Dew}
 			} else {
 				if v.Auto {
 					if len(v.List) != 0 {
 						return nil, fmt.Errorf("auto vapor at dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 					}
-					options[v.Name] = Option{"", v.Private}
+					options[v.Name] = Option{Name: ""}
 				} else {
 					if len(v.List) == 0 {
 						if err := setStructField(object, v.Name, v.Value); err != nil {
 							return nil, err
 						}
 					} else {
-						if err := setStructInlineField(object, v.Name, v.List); err != nil {
-							return nil, err
+						if v.List[0].Dew == "" {
+							// use value
+							if err := setStructInlineField(object, v.Name, v.List); err != nil {
+								return nil, err
+							}
+						} else {
+							// use dew
+							vaporOp := make([]VaporOption, len(v.List))
+							for i := range v.List {
+								vaporOp[i].Name = v.List[i].Name
+								vaporOp[i].Dew = v.List[i].Dew
+							}
+							options[v.Name] = Option{Name: "", Vapor: vaporOp}
 						}
 					}
 				}

@@ -314,3 +314,52 @@ func TestContainer_XMLUmarshalTest(t *testing.T) {
 	}
 	app.Stop()
 }
+
+type StructInlineDewTest struct {
+	List []Answerable
+	Map  map[string]Answerable
+}
+
+func TestContainer_XMLInjectDewList(t *testing.T) {
+	con := new(Container)
+	con.Register(StructInlineDewTest{})
+	con.Register(StructAnswer{})
+
+	config := []byte(`
+<rain>
+<dew id="test1" class="summer.StructAnswer">
+<vapor name="Ans"  value="1" />
+</dew>
+
+<dew id="test2" class="summer.StructAnswer">
+<vapor name="Ans"  value="2" />
+</dew>
+
+<dew id="test" class="summer.StructInlineDewTest">
+<vapor name="List">
+	<vapor dew="test1" />
+	<vapor dew="test2" />
+</vapor>
+<vapor name="Map">
+	<vapor name="key1" dew="test1" />
+	<vapor name="key2" dew="test2" />
+</vapor>
+</dew>
+</rain>
+`)
+	app, err := con.XMLConfigurationContainer(config, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Start() != nil {
+		t.Fail()
+	}
+	test := app.GetDewByName("test").Value.(*StructInlineDewTest)
+	if test.List[0].Answer() != 1 {
+		t.Fail()
+	}
+	if test.Map["key2"].Answer() != 2 {
+		t.Fail()
+	}
+	app.Stop()
+}
