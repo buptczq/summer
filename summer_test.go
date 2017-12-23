@@ -1,6 +1,7 @@
 package summer
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -19,7 +20,7 @@ type AnswerSpeaker struct {
 	Answer Answerable
 }
 
-func (s *AnswerSpeaker) Start() error {
+func (s *AnswerSpeaker) Start(ctx context.Context) error {
 	if s.Answer.Answer() != 666 {
 		return fmt.Errorf("bad answer")
 	}
@@ -41,10 +42,10 @@ func TestContainer_XMLConfigurationContainer(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 func TestContainer_XMLConfigurationContainer_BadXML(t *testing.T) {
@@ -208,10 +209,10 @@ func TestContainer_AutoInject(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 type StructInlineTest struct {
@@ -250,7 +251,7 @@ func TestContainer_XMLInjectList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
 	test := app.GetDewByName("test").Value.(*StructInlineTest)
@@ -269,7 +270,7 @@ func TestContainer_XMLInjectList(t *testing.T) {
 			t.Fail()
 		}
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 type StructUmarshalTestAns struct {
@@ -309,10 +310,10 @@ func TestContainer_XMLUmarshalTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 type StructInlineDewTest struct {
@@ -351,7 +352,7 @@ func TestContainer_XMLInjectDewList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
 	test := app.GetDewByName("test").Value.(*StructInlineDewTest)
@@ -361,5 +362,5 @@ func TestContainer_XMLInjectDewList(t *testing.T) {
 	if test.Map["key2"].Answer() != 2 {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }

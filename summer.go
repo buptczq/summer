@@ -77,9 +77,9 @@ func setFieldWithString(v reflect.Value, value string) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("unsupport inject %s into type %s", value, kt.String())
+		return fmt.Errorf("invalid inject %s into type %s", value, kt.String())
 	default:
-		return fmt.Errorf("unsupport inject %s into type %s", value, kt.String())
+		return fmt.Errorf("invalid inject %s into type %s", value, kt.String())
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func setStructInlineField(s interface{}, fieldName string, list []xmlSubVapor) e
 		}
 		v.Set(l)
 	default:
-		return fmt.Errorf("unsupport type %s", kt.String())
+		return fmt.Errorf("unsupported type %s", kt.String())
 
 	}
 	return nil
@@ -146,16 +146,23 @@ func setStructInlineField(s interface{}, fieldName string, list []xmlSubVapor) e
 func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Graph, error) {
 	var r xmlRain
 	app := &Graph{Logger: logger}
+	debug := func(f string, args ...interface{}) {
+		if logger != nil {
+			logger.Debugf(f, args...)
+		}
+	}
 	if err := xml.Unmarshal(data, &r); err != nil {
 		return nil, err
 	}
 	for _, d := range r.Dew {
+		// Instantiate objects
 		object := c.Get(d.Class)
 		if object == nil {
 			return nil, fmt.Errorf("dew %s#%s doesn't exist", d.Class, d.Id)
 		}
 		options := make(map[string]Option)
 		for _, v := range d.Vapor {
+			// Inject arguments
 			if v.Name == "" {
 				return nil, fmt.Errorf("expected a vapor name at dew %s#%s", d.Class, d.Id)
 			}
@@ -163,26 +170,41 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 				if len(v.List) != 0 {
 					return nil, fmt.Errorf("dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 				}
+				// Inject a named dew
 				options[v.Name] = Option{Name: v.Dew}
 			} else {
 				if v.Auto {
 					if len(v.List) != 0 {
 						return nil, fmt.Errorf("auto vapor at dew %s#%s shouldn't be a list or a map", d.Class, d.Id)
 					}
+					// Inject a unnamed dew
 					options[v.Name] = Option{Name: ""}
 				} else {
 					if len(v.List) == 0 {
+						// Inject const value
 						if err := setStructField(object, v.Name, v.Value); err != nil {
 							return nil, err
 						}
+						debug(
+							"assigned %s to field %s in %s",
+							v.Value,
+							v.Name,
+							d.Class,
+						)
 					} else {
 						if v.List[0].Dew == "" {
-							// use value
+							// Inject const list/map
 							if err := setStructInlineField(object, v.Name, v.List); err != nil {
 								return nil, err
 							}
+							debug(
+								"assigned %s to field %s in %s",
+								v.List,
+								v.Name,
+								d.Class,
+							)
 						} else {
-							// use dew
+							// Inject dew
 							vaporOp := make([]VaporOption, len(v.List))
 							for i := range v.List {
 								vaporOp[i].Name = v.List[i].Name
