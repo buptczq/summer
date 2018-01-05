@@ -393,8 +393,8 @@ func TestContainer_AutoInject_Tag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }

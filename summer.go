@@ -173,7 +173,7 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 			}
 			switch value {
 			case "auto":
-				options[oType.Field(i).Name] = Option{"", false}
+				options[oType.Field(i).Name] = Option{Name: ""}
 			}
 		}
 		// Vapor config from XML
