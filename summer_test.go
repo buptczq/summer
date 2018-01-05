@@ -1,6 +1,7 @@
 package summer
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -19,7 +20,7 @@ type AnswerSpeaker struct {
 	Answer Answerable
 }
 
-func (s *AnswerSpeaker) Start() error {
+func (s *AnswerSpeaker) Start(ctx context.Context) error {
 	if s.Answer.Answer() != 666 {
 		return fmt.Errorf("bad answer")
 	}
@@ -41,10 +42,10 @@ func TestContainer_XMLConfigurationContainer(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 func TestContainer_XMLConfigurationContainer_BadXML(t *testing.T) {
@@ -208,10 +209,10 @@ func TestContainer_AutoInject(t *testing.T) {
 </rain>
 `)
 	app, _ := con.XMLConfigurationContainer(config, nil)
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 type StructInlineTest struct {
@@ -250,7 +251,7 @@ func TestContainer_XMLInjectList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
 	test := app.GetDewByName("test").Value.(*StructInlineTest)
@@ -269,7 +270,7 @@ func TestContainer_XMLInjectList(t *testing.T) {
 			t.Fail()
 		}
 	}
-	app.Stop()
+	app.Stop(context.Background())
 }
 
 type StructUmarshalTestAns struct {
@@ -309,10 +310,59 @@ func TestContainer_XMLUmarshalTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if app.Start() != nil {
+	if app.Start(context.Background()) != nil {
 		t.Fail()
 	}
-	app.Stop()
+	app.Stop(context.Background())
+}
+
+type StructInlineDewTest struct {
+	List []Answerable
+	Map  map[string]Answerable
+}
+
+func TestContainer_XMLInjectDewList(t *testing.T) {
+	con := new(Container)
+	con.Register(StructInlineDewTest{})
+	con.Register(StructAnswer{})
+
+	config := []byte(`
+<rain>
+<dew id="test1" class="summer.StructAnswer">
+<vapor name="Ans"  value="1" />
+</dew>
+
+<dew id="test2" class="summer.StructAnswer">
+<vapor name="Ans"  value="2" />
+</dew>
+
+<dew id="test" class="summer.StructInlineDewTest">
+<vapor name="List">
+	<vapor dew="test1" />
+	<vapor dew="test2" />
+</vapor>
+<vapor name="Map">
+	<vapor name="key1" dew="test1" />
+	<vapor name="key2" dew="test2" />
+</vapor>
+</dew>
+</rain>
+`)
+	app, err := con.XMLConfigurationContainer(config, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Start(context.Background()) != nil {
+		t.Fail()
+	}
+	test := app.GetDewByName("test").Value.(*StructInlineDewTest)
+	if test.List[0].Answer() != 1 {
+		t.Fail()
+	}
+	if test.Map["key2"].Answer() != 2 {
+		t.Fail()
+	}
+	app.Stop(context.Background())
 }
 
 type AnswerSpeakerTag struct {

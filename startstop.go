@@ -4,42 +4,49 @@ package summer
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"sort"
+	"syscall"
+	"time"
 )
+
+const defaultTimeout = 15 * time.Second
 
 // Opener defines the Open method, objects satisfying this interface will be
 // opened by Start.
 type Opener interface {
-	Open() error
+	Open(ctx context.Context) error
 }
 
 // Closer defines the Close method, objects satisfying this interface will be
 // closed by Stop.
 type Closer interface {
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // Starter defines the Start method, objects satisfying this interface will be
 // started by Start.
 type Starter interface {
-	Start() error
+	Start(ctx context.Context) error
 }
 
 // Stopper defines the Stop method, objects satisfying this interface will be
 // stopped by Stop.
 type Stopper interface {
-	Stop() error
+	Stop(ctx context.Context) error
 }
 
 // TryStart will start the graph, in the right order. It will call
 // Start or Open. It returns the list of objects that have been
 // successfully started. This can be used to stop only the
 // dependencies that have been correctly started.
-func (g *Graph) tryStart() ([]*Dew, error) {
+func (g *Graph) tryStart(ctx context.Context) error {
 	levels, err := levels(g.Objects())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var started []*Dew
@@ -50,35 +57,40 @@ func (g *Graph) tryStart() ([]*Dew, error) {
 				if g.Logger != nil {
 					g.Logger.Debugf("opening %s", o)
 				}
-				if err := openerO.Open(); err != nil {
-					return started, err
+				if err := openerO.Open(ctx); err != nil {
+					g.started = started
+					return err
 				}
 			}
 			if starterO, ok := o.Value.(Starter); ok {
 				if g.Logger != nil {
 					g.Logger.Debugf("starting %s", o)
 				}
-				if err := starterO.Start(); err != nil {
-					return started, err
+				if err := starterO.Start(ctx); err != nil {
+					g.started = started
+					return err
 				}
 			}
 			started = append(started, o)
 		}
 	}
-	return started, nil
+	g.started = started
+	return nil
 }
 
 // Start the graph, in the right order. Start will call Start or Open if an
 // object satisfies the associated interface.
-func (g *Graph) Start() error {
-	started, err := g.tryStart()
-	g.started = started
-	return err
+func (g *Graph) Start(ctx context.Context) error {
+	return withTimeout(ctx, g.tryStart)
 }
 
 // Stop the graph, in the right order. Stop will call Stop or Close if an
 // object satisfies the associated interface.
-func (g *Graph) Stop() error {
+func (g *Graph) Stop(ctx context.Context) error {
+	return withTimeout(ctx, g.stop)
+}
+
+func (g *Graph) stop(ctx context.Context) error {
 	levels, err := levels(g.started)
 	if err != nil {
 		return err
@@ -90,7 +102,7 @@ func (g *Graph) Stop() error {
 				if g.Logger != nil {
 					g.Logger.Debugf("stopping %s", o)
 				}
-				if err := stopperO.Stop(); err != nil {
+				if err := stopperO.Stop(ctx); err != nil {
 					if g.Logger != nil {
 						g.Logger.Errorf("error stopping %s: %s", o, err)
 					}
@@ -101,7 +113,7 @@ func (g *Graph) Stop() error {
 				if g.Logger != nil {
 					g.Logger.Debugf("closing %s", o)
 				}
-				if err := closerO.Close(); err != nil {
+				if err := closerO.Close(ctx); err != nil {
 					if g.Logger != nil {
 						g.Logger.Errorf("error closing %s: %s", o, err)
 					}
@@ -230,4 +242,40 @@ func isEligible(i *Dew) bool {
 		return true
 	}
 	return false
+}
+
+func withTimeout(ctx context.Context, f func(context.Context) error) error {
+	c := make(chan error, 1)
+	go func() { c <- f(ctx) }()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-c:
+		return err
+	}
+}
+
+func (g *Graph) Run() {
+	startCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	if err := g.Start(startCtx); err != nil {
+		if g.Logger != nil {
+			g.Logger.Errorf("ERROR\t\tFailed to start: %v", err)
+		}
+		return
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	<-c
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	if err := g.Stop(stopCtx); err != nil {
+		if g.Logger != nil {
+			g.Logger.Errorf("ERROR\t\tFailed to stop cleanly: %v", err)
+		}
+	}
 }
