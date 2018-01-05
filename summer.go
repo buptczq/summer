@@ -151,10 +151,26 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 	}
 	for _, d := range r.Dew {
 		object := c.Get(d.Class)
+		oType := c.GetType(d.Class)
 		if object == nil {
 			return nil, fmt.Errorf("dew %s#%s doesn't exist", d.Class, d.Id)
 		}
 		options := make(map[string]Option)
+		// Tag
+		for i := 0; i < oType.NumField(); i++ {
+			found, value, err := extract("vapor", string(oType.Field(i).Tag))
+			if err != nil {
+				continue
+			}
+			if !found {
+				continue
+			}
+			switch value {
+			case "auto":
+				options[oType.Field(i).Name] = Option{"", false}
+			}
+		}
+		// Vapor config from XML
 		for _, v := range d.Vapor {
 			if v.Name == "" {
 				return nil, fmt.Errorf("expected a vapor name at dew %s#%s", d.Class, d.Id)

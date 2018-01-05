@@ -314,3 +314,37 @@ func TestContainer_XMLUmarshalTest(t *testing.T) {
 	}
 	app.Stop()
 }
+
+type AnswerSpeakerTag struct {
+	Answer Answerable `vapor:"auto"`
+}
+
+func (s *AnswerSpeakerTag) Start() error {
+	if s.Answer.Answer() != 666 {
+		return fmt.Errorf("bad answer")
+	}
+	return nil
+}
+
+func TestContainer_AutoInject_Tag(t *testing.T) {
+	con := new(Container)
+	con.Register(AnswerSpeakerTag{})
+	con.Register(StructAnswer{})
+	config := []byte(`
+<rain>
+<dew class="summer.StructAnswer">
+<vapor name="Ans"  value="666" />
+</dew>
+<dew id="checker" class="summer.AnswerSpeakerTag">
+</dew>
+</rain>
+`)
+	app, err := con.XMLConfigurationContainer(config, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app.Start() != nil {
+		t.Fail()
+	}
+	app.Stop()
+}

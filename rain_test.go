@@ -14,6 +14,9 @@ func TestContainer_Register(t *testing.T) {
 	if con.GetType("summer.test_server") == nil {
 		t.Fail()
 	}
+	if con.GetMap()["summer.test_server"] == nil {
+		t.Fail()
+	}
 }
 
 func TestContainer_Empty(t *testing.T) {
