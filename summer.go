@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"reflect"
 	"strconv"
+	"os"
+	"github.com/joho/godotenv"
+
 )
 
 var UMARSHALTEXT_TYPE = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
@@ -145,6 +148,7 @@ func setStructInlineField(s interface{}, fieldName string, list []xmlSubVapor) e
 
 func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Graph, error) {
 	var r xmlRain
+	godotenv.Load()
 	app := &Graph{Logger: logger}
 	debug := func(f string, args ...interface{}) {
 		if logger != nil {
@@ -198,7 +202,11 @@ func (c *Container) XMLConfigurationContainer(data []byte, logger Logger) (*Grap
 				} else {
 					if len(v.List) == 0 {
 						// Inject const value
-						if err := setStructField(object, v.Name, v.Value); err != nil {
+						value := v.Value
+						if os.Getenv(d.Class+"."+v.Name) != "" {
+							value = os.Getenv(d.Class+"."+v.Name)
+						}
+						if err := setStructField(object, v.Name, value); err != nil {
 							return nil, err
 						}
 						debug(
